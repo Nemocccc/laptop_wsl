@@ -1,0 +1,18 @@
+version: '3'
+services:
+  rust_book_project_ubuntu22:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: rust_book_project_ubuntu22
+    init: true
+    ports:
+      - "8080:80"
+    network_mode: host
+    ipc: host
+    restart: always
+    privileged: true
+    tty: true
+    shm_size: 268M
+    volumes:
+      - ../workspace:/workspace

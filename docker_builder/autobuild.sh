@@ -149,11 +149,11 @@ docker_compose_maker() {
 	cat <<EOF > docker-compose.yml
 version: '3'
 services:
-  ${image_name}_ubuntu22:
+  ${image_name}:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: ${image_name}_ubuntu22
+    container_name: ${image_name}
     init: true
     ports:
       - "8080:80"

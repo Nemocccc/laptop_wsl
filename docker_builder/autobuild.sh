@@ -1,6 +1,6 @@
 #!/bin/bash
 #author: nemo
-#version: 0.3
+#version: 0.4
 #date: 2024/09/28
 
 
@@ -11,46 +11,79 @@ Dockerfile_maker() {
     echo "Initializing..."
     touch Dockerfile
 
-    echo """
-    Input image layers you want (in order, split by , or space)
-	a -> default base_image and workspace
-	b -> use my own blocks
-	c -> add some blocks
-	1 -> basic tools (include: git)
-	2 -> python
-	3 -> cpp essential
-	4 -> rust
-    """
-    read -r choices
-    local -a choices_a=(${choices//,/ })
-
-    for c in "${choices_a[@]}"; 
+	while true;
 	do
-        case $c in
-			'a')
-			    echo "FROM ubuntu:22.04" > Dockerfile
-				echo "" >> Dockerfile
-			    echo "WORKDIR /workspace" >> Dockerfile
-			    echo "" >> Dockerfile
-				;;
-			'b')
-				bash ${SCRIPT_DIR}/get_blocks.sh
-				;;
-			'c')
-				bash ${SCRIPT_DIR}/add_blocks.sh
-				;;
-            1)
-                cat <<'EOF' >> Dockerfile
+	    echo """
+	    Input image layers you want (in order, split by , or space)
+		a -> default base_image and workspace
+		b -> use my own blocks
+		c -> add some blocks
+		d -> delete some blocks
+		1 -> basic tools (include: git)
+		2 -> python
+		3 -> cpp essential
+		4 -> rust
+	    """
+	    read -r choices
+	    local -a choices_a=(${choices//,/ })
+	
+	    for c in "${choices_a[@]}"; 
+		do
+	        case $c in
+				'a')
+				    echo "FROM ubuntu:22.04" > Dockerfile
+					echo "" >> Dockerfile
+				    echo "WORKDIR /workspace" >> Dockerfile
+				    echo "" >> Dockerfile
+					;;
+				'b')
+					while true;
+					do
+						bash ${SCRIPT_DIR}/get_blocks.sh "${SCRIPT_DIR}"
+						read -p " continue? (y|N) : " if_continue
+						if [[ $if_continue != 'y' ]];
+						then
+							echo " stop "
+							break
+						fi
+					done
+					;;
+				'c')
+					while true;
+					do
+						bash ${SCRIPT_DIR}/add_blocks.sh "${SCRIPT_DIR}"
+						read -p " continue? (y|N) : " if_continue
+						if [[ $if_continue != 'y' ]];
+						then
+							echo " stop "
+							break
+						fi
+					done
+					;;
+				'd')
+					while true;
+					do
+						bash ${SCRIPT_DIR}/delete_blocks.sh "${SCRIPT_DIR}"
+						read -p " continue? (y|N) : " if_continue
+						if [[ $if_continue != 'y' ]];
+						then
+							echo " stop "
+							break
+						fi
+					done
+					;;
+	            1)
+	                cat <<'EOF' >> Dockerfile
 RUN set -ex \
     && apt-get update \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y git \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 EOF
-                echo "" >> Dockerfile
-                ;;
-            2)
-                cat <<'EOF' >> Dockerfile
+	                echo "" >> Dockerfile
+	                ;;
+	            2)
+	                cat <<'EOF' >> Dockerfile
 RUN set -ex \
     && apt-get update \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y python3 python3-pip \
@@ -58,31 +91,31 @@ RUN set -ex \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 EOF
-                echo "" >> Dockerfile
-
-                read -rp "Do you have requirements.txt for python? (y|N) " require
-                if [[ $require == "y" ]]; 
-				then
-                    cat <<'EOF' >> Dockerfile
+	                echo "" >> Dockerfile
+	
+	                read -rp "Do you have requirements.txt for python? (y|N) " require
+	                if [[ $require == "y" ]]; 
+					then
+	                    cat <<'EOF' >> Dockerfile
 COPY requirements.txt .
 RUN pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple \
     && pip3 install --no-cache-dir -r requirements.txt
 EOF
-                    echo "" >> Dockerfile
-                fi
-                ;;
-            3)
-                cat <<'EOF' >> Dockerfile
+	                    echo "" >> Dockerfile
+	                fi
+	                ;;
+	            3)
+	                cat <<'EOF' >> Dockerfile
 RUN set -ex \
     && apt-get update \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y build-essential cmake \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 EOF
-                echo "" >> Dockerfile
-                ;;
-            4)
-                cat <<'EOF' >> Dockerfile
+	                echo "" >> Dockerfile
+	                ;;
+	            4)
+	                cat <<'EOF' >> Dockerfile
 RUN set -ex \
     && apt-get update \
     && curl -sSf https://sh.rustup.rs | sh -s -- -y \
@@ -90,13 +123,19 @@ RUN set -ex \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 EOF
-                echo "" >> Dockerfile
-                ;;
-            *)
-                echo "Invalid choice."
-                ;;
-        esac
-    done
+	                echo "" >> Dockerfile
+	                ;;
+	            *)
+	                echo "Invalid choice."
+	                ;;
+	        esac
+	    done
+		read -p "that's all? we gonna finish the Dockerfile (y|N)" if_enough
+		if [[ $if_enough == 'y' ]];
+		then
+			break
+		fi
+	done
 }
 
 docker_compose_maker() {
@@ -133,6 +172,7 @@ EOF
 docker_builder() {
     local dir_name=$1
 	# TODO or we can appoint the dir to store project.
+	mkdir -p ~/workspace
     cd ~/workspace
     if [[ -d "$dir_name" ]]; 
 	then
@@ -167,7 +207,7 @@ docker_builder() {
 
 
 start_docker() {
-	read -p "start docker right now?(y|N)" start_or_not
+	read -p "start docker right now?(y|N) : " start_or_not
 	if [[ $start_or_not == y ]];
 	then
 		local image_name=$1

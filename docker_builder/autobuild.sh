@@ -1,21 +1,25 @@
 #!/bin/bash
+#author: nemo
+#version: 0.3
+#date: 2024/09/28
 
-DOCKER_BASE_DIR=~/standard_config/docker_config
+
+SCRIPT_DIR=$(pwd)    #TODO not a good solution
+
 
 Dockerfile_maker() {
     echo "Initializing..."
     touch Dockerfile
-    echo "FROM ubuntu:22.04" > Dockerfile
-    echo "" >> Dockerfile
-    echo "WORKDIR /workspace" >> Dockerfile
-    echo "" >> Dockerfile
 
     echo """
-    Input image layers you want (split by , or space)
-    1 -> basic tools (include: git)
-    2 -> python
-    3 -> cpp essential
-    4 -> rust
+    Input image layers you want (in order, split by , or space)
+	a -> default base_image and workspace
+	b -> use my own blocks
+	c -> add some blocks
+	1 -> basic tools (include: git)
+	2 -> python
+	3 -> cpp essential
+	4 -> rust
     """
     read -r choices
     local -a choices_a=(${choices//,/ })
@@ -23,6 +27,18 @@ Dockerfile_maker() {
     for c in "${choices_a[@]}"; 
 	do
         case $c in
+			'a')
+			    echo "FROM ubuntu:22.04" > Dockerfile
+				echo "" >> Dockerfile
+			    echo "WORKDIR /workspace" >> Dockerfile
+			    echo "" >> Dockerfile
+				;;
+			'b')
+				bash ${SCRIPT_DIR}/get_blocks.sh
+				;;
+			'c')
+				bash ${SCRIPT_DIR}/add_blocks.sh
+				;;
             1)
                 cat <<'EOF' >> Dockerfile
 RUN set -ex \
@@ -87,7 +103,11 @@ docker_compose_maker() {
     local image_name=$1
     cd .. && mkdir workspace && cd config
     touch docker-compose.yml
-    cat <<EOF > docker-compose.yml
+	# TODO diy_docker_compose.sh
+	#read -p "use default settings?(y|N)" if_default
+	#if [[ if_default == 'y' ]];
+	#then
+	cat <<EOF > docker-compose.yml
 version: '3'
 services:
   ${image_name}_ubuntu22:
@@ -107,11 +127,13 @@ services:
     volumes:
       - ../workspace:/workspace
 EOF
+	#else
 }
 
 docker_builder() {
     local dir_name=$1
-    cd ~
+	# TODO or we can appoint the dir to store project.
+    cd ~/workspace
     if [[ -d "$dir_name" ]]; 
 	then
         echo "$dir_name is already exists. Cover it? (y|N)"
@@ -143,6 +165,22 @@ docker_builder() {
     fi
 }
 
+
+start_docker() {
+	read -p "start docker right now?(y|N)" start_or_not
+	if [[ $start_or_not == y ]];
+	then
+		local image_name=$1
+		echo "${pwd}"
+		docker-compose build
+		if [[ $? == 0 ]];
+		then
+			docker-compose up -d
+			docker exec -it ${image_name}_ubuntu22 bash
+		fi
+	fi
+}
+
 while true; 
 do
     echo """
@@ -155,6 +193,7 @@ do
         1)
             read -rp "Enter the name of your new project (new directory in ~ dir): " dir_name
             docker_builder "$dir_name"
+			start_docker "$dir_name"
             break
             ;;
         *)
